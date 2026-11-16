@@ -16,7 +16,7 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="RuneStack home"><span class="brand-mark">ᚱ</span><span>RUNE<span class="brand-light">STACK</span></span></a>
       <div class="season"><span class="live-dot"></span> ARENA SEASON 04 <span class="season-divider">/</span> <span class="rank">RANKED MATCH</span></div>
-      <button class="icon-button" id="soundToggle" aria-label="Toggle sound" title="Toggle sound">♫</button>
+      <div class="topbar-actions"><button class="character-button" id="characterButton" type="button">✦ CHARACTER</button><button class="icon-button" id="soundToggle" aria-label="Toggle sound" title="Toggle sound">♫</button></div>
     </header>
 
     <section class="intro-row">
@@ -26,10 +26,11 @@
 
     <section class="arena-layout" aria-label="RuneStack game">
       <aside class="side-panel player-panel">
-        <div class="identity"><div class="avatar player-avatar">✦</div><div><div class="player-name">YOU <span class="level">LV. 08</span></div><div class="player-title">Warden of the Glyph</div></div><span class="online-mark"></span></div>
-        <div class="player-health"><div class="health-label"><span>VITALITY</span><b id="playerHpText">100%</b></div><div class="health-track"><i id="playerHp"></i></div></div>
-        <div class="xp-wrap"><div class="xp-label"><span>ARCANE XP</span><span id="xpText">320 / 500</span></div><div class="xp-track"><i id="xpBar"></i></div></div>
-        <div class="stat-grid"><div class="stat"><span class="stat-label">SCORE</span><strong id="score">000000</strong></div><div class="stat"><span class="stat-label">LINES</span><strong id="lines">00</strong></div><div class="stat"><span class="stat-label">ATTACK</span><strong id="attack">00</strong></div><div class="stat"><span class="stat-label">COMBO</span><strong id="combo">×0</strong></div></div>
+        <div class="identity"><div class="avatar player-avatar">✦</div><div><div class="player-name"><span id="playerName">HUMAN</span> <span class="level" id="playerLevel">LV. 01</span></div><div class="player-title" id="playerTitle">Human Adventurer</div></div><span class="online-mark"></span></div>
+        <div class="player-health"><div class="health-label"><span>VITALITY</span><b id="playerHpText">100 / 100 HP</b></div><div class="health-track"><i id="playerHp"></i></div></div>
+        <div class="xp-wrap"><div class="xp-label"><span>EXPERIENCE</span><span id="xpText">0 / 500 XP</span></div><div class="xp-track"><i id="xpBar"></i></div></div>
+        <div class="character-stats"><div><span>ATTACK</span><b id="attackPower">8</b></div><div><span>MAX MANA</span><b id="manaMaximum">3</b></div><div><span>DEFENSE</span><b id="defenseValue">0%</b></div></div>
+        <div class="stat-grid"><div class="stat"><span class="stat-label">SCORE</span><strong id="score">000000</strong></div><div class="stat"><span class="stat-label">LINES</span><strong id="lines">00</strong></div><div class="stat"><span class="stat-label">ATTACK SENT</span><strong id="attack">00</strong></div><div class="stat"><span class="stat-label">COMBO</span><strong id="combo">×0</strong></div></div>
         <div class="side-divider"></div>
         <div class="panel-heading">YOUR SPELLBOOK <span class="mana-count"><b id="mana">3</b> <span>✦ MANA</span></span></div>
         <div class="spell-list" id="spellList" aria-label="Available spells"></div>
@@ -69,6 +70,18 @@
     <section class="touch-controls" aria-label="Touch controls"><div class="touch-row"><button data-action="left" aria-label="Move left">←</button><button data-action="rotate" aria-label="Rotate">↻</button><button data-action="right" aria-label="Move right">→</button></div><div class="touch-row"><button data-action="down" aria-label="Soft drop">↓</button><button data-action="drop" class="drop-touch">DROP</button><button data-action="hold" aria-label="Hold piece">HOLD</button></div></section>
     <footer class="page-footer"><span>RUNE STACK <b>•</b> AN ARCANE DUEL</span><span>BUILT FOR THE BOLD <b>✦</b></span></footer>
   </main>
+  <section class="character-modal" id="characterModal" role="dialog" aria-modal="true" aria-labelledby="characterHeading" hidden>
+    <form class="character-card" id="characterForm">
+      <div class="eyebrow">CREATE YOUR HERO <span>•</span> HUMAN</div>
+      <h2 id="characterHeading">Shape your legend</h2>
+      <p class="character-intro">Choose a name and build your spell loadout. Your human begins at level 1; magic unlocks as you grow.</p>
+      <label class="name-field">CHARACTER NAME<input id="characterNameInput" name="name" maxlength="20" autocomplete="nickname" placeholder="Name your adventurer" required></label>
+      <div class="creation-stats" id="creationStats"></div>
+      <div class="slot-heading"><b>MAGIC LOADOUT</b><span>5 slots unlock at levels 3 · 10 · 25 · 40 · 70</span></div>
+      <div class="spell-slots" id="spellSlots"></div>
+      <div class="character-actions"><button class="secondary-button" id="cancelCharacter" type="button">CANCEL</button><button class="primary-button" type="submit">SAVE CHARACTER <span>→</span></button></div>
+    </form>
+  </section>
   <div class="toast" id="toast" role="status"></div>
   <script src="game.js"></script>
 </body>
