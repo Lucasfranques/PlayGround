@@ -38,6 +38,19 @@ The score is weighted toward raw speed and damage, then reaction time, durabilit
 defense, placement skill and magic. The in-game enemy header shows the score, label
 and behavior; hover it for the full breakdown.
 
+## Choosing a tier
+
+Use **⚔ FOE TIER** in the top bar before a duel to challenge any tier directly,
+including the Champion tier. **Auto** keeps normal stage progression. Choosing a
+tier replaces the current opponent with a random foe from that tier and keeps all
+subsequent victories inside it until Auto is restored.
+
+## Defense caps
+
+Enemy defense is clamped to **75%** for both display and damage calculation, even if
+an override or future roster edit asks for more. The player's defense is also capped
+at **75%**, and each allocated defense point grants **+0.2%** resistance.
+
 ## Tune behavior globally
 
 Edit `enemy-tuning.js`:

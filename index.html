@@ -16,7 +16,7 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="RuneStack home"><span class="brand-mark">ᚱ</span><span>RUNE<span class="brand-light">STACK</span></span></a>
       <div class="season"><span class="live-dot"></span> ARENA SEASON 04 <span class="season-divider">/</span> <span class="rank">RANKED MATCH</span></div>
-      <div class="topbar-actions"><button class="character-button" id="characterButton" type="button">✦ CHARACTER</button><button class="icon-button" id="soundToggle" aria-label="Toggle sound" title="Toggle sound">♫</button></div>
+      <div class="topbar-actions"><button class="character-button tier-button" id="tierButton" type="button" title="Choose opponent tier">⚔ FOE TIER</button><button class="character-button" id="characterButton" type="button">✦ CHARACTER</button><button class="icon-button" id="soundToggle" aria-label="Toggle sound" title="Toggle sound">♫</button></div>
     </header>
 
     <section class="intro-row">
@@ -29,7 +29,7 @@
         <div class="identity"><div class="avatar player-avatar">✦</div><div><div class="player-name"><span id="playerName">HUMAN</span> <span class="level" id="playerLevel">LV. 01</span></div><div class="player-title" id="playerTitle">Human Adventurer</div></div><span class="online-mark"></span></div>
         <div class="player-health"><div class="health-label"><span>VITALITY</span><b id="playerHpText">100 / 100 HP</b></div><div class="health-track"><i id="playerHp"></i></div></div>
         <div class="xp-wrap" title="Line clears grant 1.25% XP each. Victories grant 150% XP, scaled up or down by foe strength."><div class="xp-label"><span>EXPERIENCE</span><span id="xpText">0 / 500 XP</span></div><div class="xp-track"><i id="xpBar"></i></div></div>
-        <div class="character-stats"><div title="Base attack plus allocated points plus +1 every 5 levels."><span>ATTACK</span><b id="attackPower">5</b></div><div><span>MAX MANA</span><b id="manaMaximum">3</b></div><div title="Defense resistance comes only from allocated defense points."><span>DEFENSE</span><b id="defenseValue">0%</b></div></div>
+        <div class="character-stats"><div title="Base attack plus allocated points plus +1 every 5 levels."><span>ATTACK</span><b id="attackPower">5</b></div><div><span>MAX MANA</span><b id="manaMaximum">3</b></div><div title="Defense resistance comes only from allocated defense points: +0.2% each, maximum 75%."><span>DEFENSE</span><b id="defenseValue">0%</b></div></div>
         <div class="stat-grid"><div class="stat"><span class="stat-label">SCORE</span><strong id="score">000000</strong></div><div class="stat"><span class="stat-label">LINES</span><strong id="lines">00</strong></div><div class="stat"><span class="stat-label">ATTACK SENT</span><strong id="attack">00</strong></div><div class="stat"><span class="stat-label">COMBO</span><strong id="combo">×0</strong></div></div>
         <div class="side-divider"></div>
         <div class="panel-heading">YOUR SPELLBOOK <span class="mana-count"><b id="mana">3</b> <span>✦ MANA</span></span></div>
@@ -70,6 +70,18 @@
     </section>
     <footer class="page-footer"><span>RUNE STACK <b>•</b> AN ARCANE DUEL</span><span>BUILT FOR THE BOLD <b>✦</b></span></footer>
   </main>
+  <section class="character-modal tier-modal" id="tierModal" role="dialog" aria-modal="true" aria-labelledby="tierHeading" hidden>
+    <div class="character-card tier-card">
+      <div class="eyebrow">CHALLENGE SELECT <span>•</span> OPPONENT TIER</div>
+      <h2 id="tierHeading">Choose your foe tier</h2>
+      <p class="character-intro">Fight an easier tier, push into a harder one, or challenge the Champion directly. Auto keeps your normal progression.</p>
+      <div class="tier-grid" id="tierGrid"></div>
+      <div class="character-actions">
+        <button class="secondary-button" id="cancelTier" type="button">CANCEL</button>
+        <button class="primary-button" id="confirmTier" type="button">KEEP AUTO PROGRESSION <span>→</span></button>
+      </div>
+    </div>
+  </section>
   <section class="character-modal" id="characterModal" role="dialog" aria-modal="true" aria-labelledby="characterHeading" hidden>
     <form class="character-card" id="characterForm">
       <div class="eyebrow">CREATE YOUR HERO <span>•</span> HUMAN</div>
@@ -83,7 +95,7 @@
     </form>
   </section>
   <section class="attribute-modal" id="attributeModal" role="dialog" aria-modal="true" aria-labelledby="attributeHeading" hidden>
-    <div class="attribute-card"><div class="eyebrow">LEVEL UP <span>•</span> CHARACTER GROWTH</div><h2 id="attributeHeading">Allocate attribute points</h2><p>Choose where your new points go. Level-ups grant 2–4 points, and attack also rises +1 every 5 levels. Unspent points remain available.</p><div class="points-remaining">POINTS AVAILABLE <b id="attributePoints">0</b></div><div class="attribute-choices"><button type="button" data-attribute="hp"><b>HP</b><span>+10 maximum vitality</span><strong id="hpAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="attack"><b>ATTACK</b><span>+1 damage per attack</span><strong id="attackAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="defense"><b>DEFENSE</b><span>+2% damage resistance</span><strong id="defenseAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="mana"><b>MANA</b><span>+1 maximum mana (up to 50)</span><strong id="manaAttributeCount">0</strong><i>+</i></button></div><button type="button" class="primary-button attribute-done" id="attributeDone">DONE <span>→</span></button></div>
+    <div class="attribute-card"><div class="eyebrow">LEVEL UP <span>•</span> CHARACTER GROWTH</div><h2 id="attributeHeading">Allocate attribute points</h2><p>Choose where your new points go. Level-ups grant 2–4 points, attack also rises +1 every 5 levels, and defense caps at 75%. Unspent points remain available.</p><div class="points-remaining">POINTS AVAILABLE <b id="attributePoints">0</b></div><div class="attribute-choices"><button type="button" data-attribute="hp"><b>HP</b><span>+10 maximum vitality</span><strong id="hpAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="attack"><b>ATTACK</b><span>+1 damage per attack</span><strong id="attackAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="defense"><b>DEFENSE</b><span>+0.2% damage resistance</span><strong id="defenseAttributeCount">0</strong><i>+</i></button><button type="button" data-attribute="mana"><b>MANA</b><span>+1 maximum mana (up to 50)</span><strong id="manaAttributeCount">0</strong><i>+</i></button></div><button type="button" class="primary-button attribute-done" id="attributeDone">DONE <span>→</span></button></div>
   </section>
   <div class="toast" id="toast" role="status"></div>
   <script src="enemy-tuning.js"></script>
