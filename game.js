@@ -10,6 +10,8 @@
     L:{color:'#f39b66',matrix:[[0,0,1],[1,1,1],[0,0,0]]}
   };
   const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+  // >>> ROSTER_DATA (extracted by tools/audit-enemies.js)
+  function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
   const SPELLS=[
     ['flare','Emberfall','Burn 1 enemy row',2,'✧','flare-icon'],['veil','Aegis Veil','Block attacks · 8 sec',2,'◈','veil-icon'],['hex','Widdershins','Skew next 3 enemy pieces',3,'↝','hex-icon'],
     ['mend','Mending Bloom','Restore 28 vitality',3,'✚','veil-icon'],['frost','Frostbind','Slow foe for 8 sec',3,'❄','hex-icon'],['quake','Rift Quake','Send 2 enemy garbage',4,'⌁','flare-icon'],
@@ -28,6 +30,30 @@
   const ANIMAL_VOICES={'Ash Wolf':'Awooo!','Cinder Bat':'Kee-kee-kee!','Dusk Stag':'Hrrr-umph!','Frost Lynx':'Mrrrow!','Iron Boar':'Snort!','Moon Raven':'Nevermore!','Wisp Fox':'Yip-yip!','Crypt Hound':'Woof!','Ember Ape':'Ooh-ooh!','Storm Owl':'Hoo-hoo!','Obsidian Ram':'Baaah!','Hollow Cat':'Mrrp!','Rune Bear':'Grrr!'};
   const LEVEL_UNLOCKS=[3,5,13,20,35];
   const TIER_COUNTS=[100,150,150,100,100,100,50,50,25,25,50];
+  // Behavior dials live in enemy-tuning.js so they can be edited without touching game logic.
+  const DEFAULT_ENEMY_TUNING={speed:1,think:1,hold:1,skill:1,aggression:1};
+  const ENEMY_TUNING=Object.assign({},DEFAULT_ENEMY_TUNING,(typeof window!=='undefined'&&window.RUNESTACK_ENEMY_TUNING)||{});
+  const BEHAVIOR_PROFILES={
+    TIDY:{label:'ARCHITECT',skill:.96,speed:.97,think:1.05,hold:.95,aggression:.9},
+    EDGE:{label:'EDGE-LORD',skill:.9,speed:1,think:1,hold:1,aggression:1},
+    CENTER_GAP:{label:'WELLKEEPER',skill:.93,speed:.98,think:1.02,hold:1.05,aggression:.95},
+    AGGRESSIVE:{label:'RUSHER',skill:.74,speed:1.14,think:.88,hold:.8,aggression:1.18},
+    SAFE:{label:'SENTINEL',skill:.9,speed:.93,think:1.08,hold:1.08,aggression:.85},
+    WELL:{label:'TRAPPER',skill:.88,speed:.97,think:1.03,hold:1.02,aggression:1},
+    CHAOTIC:{label:'WILDCARD',skill:.56,speed:1.05,think:.94,hold:.75,aggression:1.12},
+    BALANCED:{label:'DUELIST',skill:.85,speed:1,think:1,hold:1,aggression:1}
+  };
+  // Per-enemy overrides live in enemy-tuning.js. Key = 1-based roster position (FOE 001..900).
+  // Strategy changes placement priorities and the displayed behavior label.
+  // Numeric fields replace the generated value directly, then the audit re-scores the foe.
+  const ENEMY_OVERRIDES=(typeof window!=='undefined'&&window.RUNESTACK_ENEMY_OVERRIDES)||{};
+  function applyEnemyOverride(foe,override){
+    if(!override)return foe;
+    if(override.strategy&&BEHAVIOR_PROFILES[override.strategy]){foe.strategy=override.strategy;foe.behavior=BEHAVIOR_PROFILES[override.strategy].label}
+    const ranges={dropMs:[200,2000],thinkMs:[100,2000],holdChance:[0,.95],hardDrop:[0,1],skill:[0,1],hp:[1,900],attack:[1,999],defense:[0,75],attackDamage:[1,999]};
+    Object.entries(ranges).forEach(([key,[min,max]])=>{if(override[key]!=null)foe[key]=clamp(Math.round(override[key]*100)/100,min,max)});
+    return foe;
+  }
   const ENEMIES=[];
   TIER_COUNTS.forEach((count,tierIndex)=>{
     const tier=tierIndex+1;
@@ -40,11 +66,115 @@
       const spellOffset=(i*3)%SPELLS.length;
       const spells=Array.from({length:spellCount},(_,n)=>SPELLS[(spellOffset+n*5)%SPELLS.length].id);
       const archetypeKey=['RAVAGER','TANK','BULWARK','TACTICIAN'][i%4],archetype=ARCHETYPES[archetypeKey],hard=i%19===3||i%47===11;
+      const strategy=hard?(i%2?'AGGRESSIVE':'TIDY'):STRATEGIES[i%STRATEGIES.length];
+      const behavior=BEHAVIOR_PROFILES[strategy]||BEHAVIOR_PROFILES.BALANCED;
+      const speedMod=clamp(behavior.speed*ENEMY_TUNING.speed,.6,1.5);
+      const thinkMod=clamp(behavior.think*ENEMY_TUNING.think,.6,1.5);
+      const holdMod=clamp(behavior.hold*ENEMY_TUNING.hold,.6,1.5);
+      const aggroMod=clamp(behavior.aggression*ENEMY_TUNING.aggression,.6,1.5);
+      const skill=clamp(behavior.skill*ENEMY_TUNING.skill,.4,1);
       const hpBase=76+tier*11+(tierOffset%9)*4,attackBase=5+tier*.82+(i%9)*.45,defenseBase=3+tier*1.05+(i%9)*.65;
-      const holdChance=Math.min(.7,.15+(tier-1)*.026+(i%6)*.04+(hard?.12:0));
-      ENEMIES.push({index:i,tier,style,archetype:archetypeKey,hard,name:`${species} ${EPITHETS[(Math.floor(i/SPECIES.length)+speciesIndex*3)%EPITHETS.length]}`,hp:Math.min(900,Math.round(hpBase*archetype.hp*(hard?1.12:1))),attack:Math.max(2,Math.round(attackBase*archetype.attack*(hard?1.18:1))),defense:Math.min(75,Math.round(defenseBase*archetype.defense*(hard?1.12:1))),dropMs:Math.max(320,(hard?760:1120)-(tier-1)*(hard?34:16)),thinkMs:Math.max(150,(hard?380:720)-(tier-1)*(hard?17:9)),attackMs:Math.max(8000,27000-(tier-1)*360),spells,magic:spells.length>0,enemyManaMax:spells.length?Math.max(4,spellCount*3):0,hardDrop:Math.min(.94,(hard?.62:.08)+(tier-1)*(hard?.024:.014)),attackDamage:Math.min(42,Math.round((5+Math.floor(tier*.72))*archetype.attack*(hard?1.16:1))),strategy:hard?(i%2?'AGGRESSIVE':'TIDY'):STRATEGIES[i%STRATEGIES.length],personality:PERSONALITIES[(i*3+Math.floor(i/20))%PERSONALITIES.length],voice:ANIMAL_VOICES[species]||null,holdChance});
+      const holdChance=clamp((.15+(tier-1)*.026+(i%6)*.04+(hard?.12:0))*holdMod,.1,.78);
+      const dropBase=Math.max(320,(hard?760:1120)-(tier-1)*(hard?34:16));
+      const thinkBase=Math.max(150,(hard?380:720)-(tier-1)*(hard?17:9));
+      const foe={
+        index:i,tier,style,archetype:archetypeKey,hard,
+        name:`${species} ${EPITHETS[(Math.floor(i/SPECIES.length)+speciesIndex*3)%EPITHETS.length]}`,
+        hp:Math.min(900,Math.round(hpBase*archetype.hp*(hard?1.12:1))),
+        attack:Math.max(2,Math.round(attackBase*archetype.attack*(hard?1.18:1))),
+        defense:Math.min(75,Math.round(defenseBase*archetype.defense*(hard?1.12:1))),
+        dropMs:clamp(Math.round(dropBase/speedMod),280,1250),
+        thinkMs:clamp(Math.round(thinkBase/thinkMod),130,820),
+        attackMs:Math.max(8000,27000-(tier-1)*360),
+        spells,magic:spells.length>0,
+        enemyManaMax:spells.length?Math.max(4,spellCount*3):0,
+        hardDrop:clamp(((hard?.62:.08)+(tier-1)*(hard?.024:.014))*aggroMod,.04,.97),
+        attackDamage:Math.min(42,Math.round((5+Math.floor(tier*.72))*archetype.attack*(hard?1.16:1))),
+        strategy,behavior:behavior.label,skill,
+        personality:PERSONALITIES[(i*3+Math.floor(i/20))%PERSONALITIES.length],
+        voice:ANIMAL_VOICES[species]||null,
+        holdChance
+      };
+      applyEnemyOverride(foe,ENEMY_OVERRIDES[i+1]);
+      ENEMIES.push(foe);
     }
   });
+  function enemyDifficultyProfile(foe){
+    const speed=clamp((1250-foe.dropMs)/(1250-280),0,1);
+    const reaction=clamp((820-foe.thinkMs)/(820-130),0,1);
+    const aggression=clamp(foe.hardDrop,0,1);
+    const hold=clamp(foe.holdChance/.78,0,1);
+    const durability=clamp((foe.hp-70)/(900-70),0,1);
+    const defense=clamp(foe.defense/75,0,1);
+    const damage=clamp((foe.attackDamage-4)/(42-4),0,1);
+    const magic=clamp((foe.spells.length/5)*.65+(foe.enemyManaMax/15)*.35,0,1);
+    const skill=clamp(foe.skill??.8,0,1);
+    const tier=clamp((foe.tier-1)/10,0,1);
+    const raw=.16*speed+.13*reaction+.08*aggression+.05*hold+.14*durability+.11*defense+.13*damage+.07*magic+.08*skill+.05*tier;
+    const score=clamp(Math.round((raw*100-10)*(100/55)),0,100);
+    return {score,speed,reaction,aggression,hold,durability,defense,damage,magic,skill,tier};
+  }
+  function enemyDifficultyLabel(score){
+    if(score>=85)return 'NIGHTMARE';
+    if(score>=74)return 'ELITE';
+    if(score>=62)return 'HARD';
+    if(score>=50)return 'TOUGH';
+    if(score>=38)return 'FAIR';
+    if(score>=26)return 'EASY';
+    return 'TRIVIAL';
+  }
+  function auditEnemyRoster(){
+    const rows=ENEMIES.map(foe=>{
+      const breakdown=enemyDifficultyProfile(foe);
+      return {index:foe.index+1,name:foe.name,tier:foe.tier,hard:foe.hard,behavior:foe.behavior,strategy:foe.strategy,overridden:Boolean(ENEMY_OVERRIDES[foe.index+1]),score:breakdown.score,label:enemyDifficultyLabel(breakdown.score),dropMs:foe.dropMs,thinkMs:foe.thinkMs,skill:Math.round(breakdown.skill*100),hp:foe.hp,attack:foe.attack,defense:foe.defense,attackDamage:foe.attackDamage,holdChance:Math.round(foe.holdChance*100),spells:foe.spells.length,breakdown};
+    });
+    const tierAverages={};
+    const tiers=TIER_COUNTS.map((count,index)=>{
+      const tier=index+1,group=rows.filter(row=>row.tier===tier);
+      const avg=group.length?Math.round(group.reduce((sum,row)=>sum+row.score,0)/group.length):0;
+      tierAverages[tier]=avg;
+      return {tier,count,avg,min:Math.min(...group.map(row=>row.score)),max:Math.max(...group.map(row=>row.score)),avgDropMs:Math.round(group.reduce((sum,row)=>sum+row.dropMs,0)/group.length),avgThinkMs:Math.round(group.reduce((sum,row)=>sum+row.thinkMs,0)/group.length),avgSkill:Math.round(group.reduce((sum,row)=>sum+row.skill,0)/group.length)};
+    });
+    const bands={};
+    rows.forEach(row=>{bands[row.label]=(bands[row.label]||0)+1});
+    const behaviorCounts={};
+    rows.forEach(row=>{behaviorCounts[row.behavior]=(behaviorCounts[row.behavior]||0)+1});
+    const outliers=rows.map(row=>({...row,delta:row.score-tierAverages[row.tier]})).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+    const standardOutliers=outliers.filter(row=>!row.hard);
+    const checks=[
+      {name:'Roster has 900 enemies',pass:rows.length===900},
+      {name:'All 11 tiers present',pass:tiers.length===11&&tiers.every(t=>t.count>0)},
+      {name:'Tier difficulty rises',pass:tiers.every((tier,index)=>index===0||tier.avg>=tiers[index-1].avg-1)},
+      {name:'Tier 1 stays beginner-friendly',pass:tiers[0].max<50},
+      {name:'Champion tier is hardest',pass:tiers[10].avg>=Math.max(...tiers.map(tier=>tier.avg))-1},
+      {name:'Standard foes stay near tier average',pass:Math.abs(standardOutliers[0]?.delta||0)<=18},
+      {name:'Hard variants create elite spikes',pass:rows.filter(row=>row.hard).every(row=>row.score>=tierAverages[row.tier])},
+      {name:'All eight behaviors used',pass:Object.keys(behaviorCounts).length===8},
+      {name:'Each behavior has a meaningful share',pass:Object.values(behaviorCounts).every(count=>count>=20)},
+      {name:'Enemy overrides are valid',pass:Object.entries(ENEMY_OVERRIDES).every(([index,override])=>Number(index)>=1&&Number(index)<=ENEMIES.length&&(!override.strategy||Boolean(BEHAVIOR_PROFILES[override.strategy])))}
+    ];
+    const overrides=rows.filter(row=>row.overridden).map(({index,name,tier,score,label,behavior})=>({index,name,tier,score,label,behavior}));
+    return {total:rows.length,tiers,bands,behaviorCounts,overrides,outliers:outliers.slice(0,15),checks,rows};
+  }
+  if(typeof window!=='undefined'){
+    window.RuneStackAudit=()=>{
+      const report=auditEnemyRoster();
+      console.table(report.tiers);
+      console.table(report.bands);
+      console.table(report.checks);
+      console.table(report.outliers.map(({index,name,tier,score,label,delta,dropMs,thinkMs,skill,behavior})=>({index,name,tier,score,label,delta,dropMs,thinkMs,skill,behavior})));
+      return report;
+    };
+    window.RuneStackEnemy=(number)=>{
+      const foe=ENEMIES[clamp((Number(number)||1)-1,0,ENEMIES.length-1)];
+      const breakdown=enemyDifficultyProfile(foe);
+      return {foe,breakdown,label:enemyDifficultyLabel(breakdown.score)};
+    };
+    window.RuneStackTuning=ENEMY_TUNING;
+    window.RuneStackBehaviors=BEHAVIOR_PROFILES;
+    window.RuneStackOverrides=ENEMY_OVERRIDES;
+  }
+  // <<< ROSTER_DATA
   function readProfile(){try{const saved=JSON.parse(localStorage.getItem('runestack-player')||'null');if(!saved||typeof saved.name!=='string'||!saved.name.trim())return null;const level=Math.max(1,Math.min(100,Number(saved.level)||1)),savedSpells=Array.isArray(saved.spells)?saved.spells:[],spells=LEVEL_UNLOCKS.map((unlock,slot)=>{const id=savedSpells[slot];return level>=unlock&&SPELLS.some((spell,index)=>spell.id===id&&Math.min(4,Math.floor(index*5/SPELLS.length))===slot)?id:null});return {name:saved.name.trim().slice(0,20),level,xp:Math.max(0,Number(saved.xp)||0),spells,attributes:{hp:Math.max(0,Number(saved.attributes?.hp)||0),attack:Math.max(0,Number(saved.attributes?.attack)||0),defense:Math.max(0,Number(saved.attributes?.defense)||0),mana:Math.max(0,Number(saved.attributes?.mana)||0)},attributePoints:Math.max(0,Number(saved.attributePoints??10)||0)}}catch(e){return null}}
   let profile=readProfile();
   function playerStats(level=profile?.level||1){const attrs=profile?.attributes||{hp:0,attack:0,defense:0,mana:0};return {hp:100+(level-1)*2+attrs.hp*10,attack:5+attrs.attack,mana:Math.min(50,3+attrs.mana),defense:Math.min(75,attrs.defense*2)}}
@@ -124,7 +254,7 @@
   function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('show');clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>el.classList.remove('show'),2100);}
   function formatTime(s){const n=Math.floor(s);return `${String(n/60|0).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
   function syncEnemyMana(){const foe=enemyInfo(),wrap=$('#enemyManaWrap');wrap.hidden=!foe.magic;$('#enemyManaText').textContent=`${Math.floor(state.enemyMana)} / ${state.enemyManaMax}`;$('#enemyMana').style.width=`${state.enemyManaMax?state.enemyMana/state.enemyManaMax*100:0}%`;}
-  function updateUI(){ $('#score').textContent=String(state.score).padStart(6,'0');$('#lines').textContent=String(state.lines).padStart(2,'0');$('#attack').textContent=String(state.attack).padStart(2,'0');$('#combo').textContent=`×${state.combo}`;$('#mana').textContent=state.mana;const enemy=enemyInfo(),enemyHp=Math.max(0,Math.round(state.enemyHp));const enemyMaxHp=Math.max(1,state.enemyMaxHp||enemy.hp),enemyPercent=Math.max(0,Math.min(100,enemyHp/enemyMaxHp*100)),playerHp=Math.max(0,Math.round(state.playerHp/(state.playerMaxHp||100)*100));$('#enemyName').textContent=enemy.name.toUpperCase();$('#enemyRank').textContent=`FOE ${String(enemy.index+1).padStart(3,'0')} / ${ENEMIES.length} · ${enemy.tier===11?'CHAMPION':`TIER ${enemy.tier}`}`;$('#enemyTrait').textContent=enemy.magic?'ARCANE':'PHYSICAL';$('#enemyAttributes').textContent=`ATK ${enemy.attack} · DEF ${enemyDefensePercent(enemy)}% · ${enemy.strategy} · ${enemy.holdChance*100|0}% HOLD`;$('#enemyHpText').textContent=`${enemyHp} / ${enemyMaxHp}`;$('#enemyHp').style.width=`${enemyPercent}%`;$('#playerHpText').textContent=`${Math.max(0,Math.round(state.playerHp))} / ${state.playerMaxHp} HP`;$('#playerHp').style.width=`${playerHp}%`;$('#timer').textContent=formatTime(state.elapsed);syncSpellbook();syncEnemyMana();if(profile)updateProfileUI();}
+  function updateUI(){ $('#score').textContent=String(state.score).padStart(6,'0');$('#lines').textContent=String(state.lines).padStart(2,'0');$('#attack').textContent=String(state.attack).padStart(2,'0');$('#combo').textContent=`×${state.combo}`;$('#mana').textContent=state.mana;const enemy=enemyInfo(),enemyHp=Math.max(0,Math.round(state.enemyHp));const enemyMaxHp=Math.max(1,state.enemyMaxHp||enemy.hp),enemyPercent=Math.max(0,Math.min(100,enemyHp/enemyMaxHp*100)),playerHp=Math.max(0,Math.round(state.playerHp/(state.playerMaxHp||100)*100));$('#enemyName').textContent=enemy.name.toUpperCase();$('#enemyRank').textContent=`FOE ${String(enemy.index+1).padStart(3,'0')} / ${ENEMIES.length} · ${enemy.tier===11?'CHAMPION':`TIER ${enemy.tier}`}`;$('#enemyTrait').textContent=enemy.magic?'ARCANE':'PHYSICAL';const diff=enemyDifficultyProfile(enemy);$('#enemyAttributes').textContent=`ATK ${enemy.attack} · DEF ${enemyDefensePercent(enemy)}% · DIFF ${diff.score} ${enemyDifficultyLabel(diff.score)} · ${enemy.behavior}`;$('#enemyAttributes').title=`Speed ${Math.round(diff.speed*100)} · Reactions ${Math.round(diff.reaction*100)} · Aggression ${Math.round(diff.aggression*100)} · Hold ${Math.round(diff.hold*100)} · Durability ${Math.round(diff.durability*100)} · Defense ${Math.round(diff.defense*100)} · Damage ${Math.round(diff.damage*100)} · Magic ${Math.round(diff.magic*100)} · Skill ${Math.round(diff.skill*100)}`;$('#enemyHpText').textContent=`${enemyHp} / ${enemyMaxHp}`;$('#enemyHp').style.width=`${enemyPercent}%`;$('#playerHpText').textContent=`${Math.max(0,Math.round(state.playerHp))} / ${state.playerMaxHp} HP`;$('#playerHp').style.width=`${playerHp}%`;$('#timer').textContent=formatTime(state.elapsed);syncSpellbook();syncEnemyMana();if(profile)updateProfileUI();}
   function sound(kind){if(!state.sound)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!state.audio)state.audio=new AC();const ctx=state.audio,o=ctx.createOscillator(),g=ctx.createGain();const freq={move:220,rotate:340,drop:110,clear:500,bigclear:700,attack:160,spell:440,start:330,win:660,loss:130}[kind]||300;o.type=kind==='spell'?'sine':'triangle';o.frequency.setValueAtTime(freq,ctx.currentTime);o.frequency.exponentialRampToValueAtTime(freq*.72,ctx.currentTime+.12);g.gain.setValueAtTime(.055,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.15);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+.16)}catch(e){}}
   function block(ctx,x,y,size,color,ghost=false){const pad=Math.max(1,size*.055),px=x*size+pad,py=y*size+pad,w=size-pad*2,h=size-pad*2;ctx.globalAlpha=ghost?.28:1;ctx.fillStyle=color;ctx.fillRect(px,py,w,h);if(!ghost){ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(px,py,w,Math.max(1,size*.08));ctx.fillRect(px,py,Math.max(1,size*.08),h);ctx.fillStyle='rgba(0,0,0,.24)';ctx.fillRect(px,py+h-Math.max(1,size*.08),w,Math.max(1,size*.08));ctx.fillRect(px+w-Math.max(1,size*.08),py,Math.max(1,size*.08),h);ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(px+size*.22,py+size*.22,w*.42,h*.16)}ctx.globalAlpha=1;}
   function drawBoard(ctx,canvas,board,piece,enemy=false){const w=canvas.width,h=canvas.height,size=w/COLS;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0a0f1b';ctx.fillRect(0,0,w,h);ctx.strokeStyle=enemy?'rgba(130,92,111,.09)':'rgba(107,132,165,.10)';ctx.lineWidth=1;for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(x*size+.5,0);ctx.lineTo(x*size+.5,h);ctx.stroke()}for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*size+.5);ctx.lineTo(w,y*size+.5);ctx.stroke()}
@@ -134,7 +264,7 @@
   let nextTypePreview=nextEnemyType();function drawAll(){drawBoard(pctx,playerCanvas,state.board,state.piece);drawBoard(ectx,enemyCanvas,state.enemy,state.enemyPiece,true);}
   function enemyPlacement(source=state.enemyPiece){
     if(!source)return null;
-    let best=null;
+    const options=[];
     const foe=enemyInfo();
     for(let rotation=0,m=source.m;rotation<4;rotation++,m=rotateMatrix(m,1)){
       for(let x=0;x<=COLS-m[0].length;x++){
@@ -203,10 +333,14 @@
         }
         if(foe.archetype==='TACTICIAN')score-=rowTransitions*2+columnTransitions*2;
         if(foe.archetype==='RAVAGER')score+=cleared*180+attack*100;
-        if(!best||score>best.score)best={x,rotation,score};
+        options.push({x,rotation,score});
       }
     }
-    return best;
+    if(!options.length)return null;
+    options.sort((a,b)=>b.score-a.score);
+    const skill=clamp(foe.skill??.85,0,1);
+    if(options.length>1&&Math.random()>skill){const pool=options.slice(1,Math.min(options.length,5));return pool[Math.floor(Math.random()*pool.length)]}
+    return options[0];
   }
   function enemyThink(){if(!state.enemyPiece||Date.now()<state.enemyStunUntil)return;const foe=enemyInfo();let p=state.enemyPiece;if(!state.enemyHoldChecked){state.enemyHoldChecked=true;let plan=enemyPlacement(p);if(Math.random()<foe.holdChance){const heldType=state.enemyHold||nextTypePreview,candidate=makePiece(heldType),candidatePlan=enemyPlacement(candidate);if(candidatePlan&&(!plan||candidatePlan.score>plan.score+160||Math.random()<foe.holdChance)){if(state.enemyHold)state.enemyHold=p.type;else{state.enemyHold=p.type;nextTypePreview=nextEnemyType()}state.enemyPiece=candidate;p=candidate;plan=candidatePlan;state.enemyPlanPiece=null;log(`${foe.name} holds a ${heldType} sigil for a better opening.`,'');renderPreviews()}}if(!plan)return;state.enemyPlanPiece=p;state.enemyTargetX=plan.x;state.enemyTargetRotation=plan.rotation}if(state.enemyPlanPiece!==p){const plan=enemyPlacement(p);if(!plan)return;state.enemyPlanPiece=p;state.enemyTargetX=plan.x;state.enemyTargetRotation=plan.rotation}if(p.x!==state.enemyTargetX){const dx=Math.sign(state.enemyTargetX-p.x);if(!collides(state.enemy,p,dx,0))p.x+=dx}if(state.enemyRotation!==state.enemyTargetRotation){const rotated=rotateMatrix(p.m,1),kicks=[0,-1,1,-2,2];for(const k of kicks)if(!collides(state.enemy,p,k,0,rotated)){p.x+=k;p.m=rotated;state.enemyRotation=(state.enemyRotation+1)%4;break}}if(p.x===state.enemyTargetX&&state.enemyRotation===state.enemyTargetRotation&&Math.random()<foe.hardDrop)state.enemyHardDropPending=true}
   function enemyHardDrop(){if(!state.enemyPiece)return;while(!collides(state.enemy,state.enemyPiece,0,1))state.enemyPiece.y++;state.enemyHardDropPending=false;lockPiece(true)}
