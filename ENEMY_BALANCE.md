@@ -1,8 +1,9 @@
 # Enemy balance
 
-RuneStack generates 900 enemies across 11 tiers. Every enemy is scored from 0 to 100
-using its speed, reaction time, aggression, hold use, durability, defense, damage,
-magic, placement skill and tier.
+RuneStack generates 900 enemies across 11 tiers. Every enemy is scored from **0 to
+1000** using its falling speed, lateral movement speed, reaction time, aggression,
+hold use, durability, defense, damage, magic, placement skill and tier. The in-game
+header also shows the score as a percentage (`DIFF 864/1000 · 86.4%`).
 
 ## Audit all 900 enemies
 
@@ -24,19 +25,44 @@ node tools/audit-enemies.js --json          # full report for all 900
 
 ## Difficulty labels
 
-| Score | Label |
-| --- | --- |
-| 0–25 | TRIVIAL |
-| 26–37 | EASY |
-| 38–49 | FAIR |
-| 50–61 | TOUGH |
-| 62–73 | HARD |
-| 74–84 | ELITE |
-| 85–100 | NIGHTMARE |
+| Score | Percentage | Label |
+| --- | --- | --- |
+| 0–259 | 0–25.9% | TRIVIAL |
+| 260–379 | 26–37.9% | EASY |
+| 380–499 | 38–49.9% | FAIR |
+| 500–619 | 50–61.9% | TOUGH |
+| 620–739 | 62–73.9% | HARD |
+| 740–849 | 74–84.9% | ELITE |
+| 850–1000 | 85–100% | NIGHTMARE |
 
 The score is weighted toward raw speed and damage, then reaction time, durability,
-defense, placement skill and magic. The in-game enemy header shows the score, label
-and behavior; hover it for the full breakdown.
+defense, placement skill and magic. Lateral mobility now contributes too. Hover the
+in-game enemy header for the full breakdown of every component.
+
+## Tier strength and speed
+
+Tier curves are defined in `TIER_POWER` inside `game.js`. Each tier multiplies HP,
+attack damage, defense, falling speed, reaction speed and aggression on top of the
+base tier scaling. Later tiers also receive faster lateral movement and more spells.
+
+| Tier | Identity | Typical behavior |
+| --- | --- | --- |
+| 1–3 | Learning tiers | Slow drops, few spells, forgiving damage |
+| 4–6 | Midgame | Faster decisions, 1–3 spells, harder drops |
+| 7–9 | Advanced | Rapid movement, heavy damage, 3–4 spells |
+| 10 | Elite | Near-elite speed and durability |
+| 11 | Champion | Extremely fast movement/drops, huge HP, 75% defense on some foes, 4–5 spells, meant for level 90+ |
+
+Champion foes can move two columns per movement tick, receive near-guaranteed hard
+drops, and act every 45–70 ms once aligned. The tier selector labels Champion as
+**LV 90+** and warns underleveled challengers without blocking the attempt.
+
+## Underlevel ward
+
+A player far below a tier's expected level cannot be deleted by two quick line
+clears. Enemy damage is capped at 40% of the player's maximum vitality while the
+player is more than 10 levels below `tier × 9`. Champion remains lethal at level 90+
+because the ward no longer applies there.
 
 ## Choosing a tier
 
@@ -82,9 +108,9 @@ window.RUNESTACK_ENEMY_OVERRIDES = {
 Supported fields:
 
 - `strategy`: `TIDY`, `EDGE`, `CENTER_GAP`, `AGGRESSIVE`, `SAFE`, `WELL`, `CHAOTIC`, `BALANCED`
-- `dropMs`, `thinkMs`: falling and decision intervals in milliseconds
+- `dropMs`, `thinkMs`, `moveMs`: falling, decision and lateral-movement intervals in milliseconds
 - `holdChance`, `hardDrop`, `skill`: values from 0 to 1
-- `hp`, `attack`, `defense`, `attackDamage`: direct stat replacements
+- `hp`, `attack`, `defense`, `attackDamage`: direct stat replacements (`attackDamage` caps at 55)
 
 After editing, run `node tools/audit-enemies.js --overrides` and the full audit.
 
@@ -107,7 +133,7 @@ Open the game console:
 
 ```js
 RuneStackAudit()        // full report
-RuneStackEnemy(858)     // one foe with score breakdown
+RuneStackEnemy(858)     // one foe with score, percentage and breakdown
 RuneStackTuning         // active global dials
 RuneStackBehaviors      // behavior profiles
 RuneStackOverrides      // active per-enemy overrides

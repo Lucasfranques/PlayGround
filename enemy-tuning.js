@@ -15,6 +15,6 @@ window.RUNESTACK_ENEMY_TUNING = {
 // Numeric fields replace the generated value directly. Re-run the audit after edits.
 //
 // Example:
-// 41: { strategy: 'SAFE', skill: .95, dropMs: 520, thinkMs: 260, holdChance: .5 },
-// 858: { strategy: 'RUSHER', skill: .74, dropMs: 368, thinkMs: 239, hardDrop: .62 }
+// 41: { strategy: 'SAFE', skill: .95, dropMs: 520, thinkMs: 260, moveMs: 240, holdChance: .5 },
+// 858: { strategy: 'RUSHER', skill: .74, dropMs: 368, thinkMs: 239, moveMs: 90, hardDrop: .62 }
 window.RUNESTACK_ENEMY_OVERRIDES = {};

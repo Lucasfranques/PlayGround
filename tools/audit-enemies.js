@@ -43,7 +43,7 @@ if (indexArg) {
   const foe = api.ENEMIES[index];
   const breakdown = api.enemyDifficultyProfile(foe);
   console.log(`#${foe.index + 1} ${foe.name} · Tier ${foe.tier}${foe.hard ? ' · HARD' : ''} · ${foe.behavior}`);
-  console.log(`Difficulty: ${breakdown.score}/100 ${api.enemyDifficultyLabel(breakdown.score)}`);
+  console.log(`Difficulty: ${breakdown.score}/1000 · ${breakdown.percent.toFixed(1)}% ${api.enemyDifficultyLabel(breakdown.score)}`);
   console.table(Object.fromEntries(Object.entries(breakdown).map(([key, value]) => [key, key === 'score' ? value : Math.round(value * 100)])));
   console.log('Raw enemy stats:', foe);
   process.exit(0);
@@ -57,8 +57,8 @@ if (tierArg) {
     console.error(`No enemies in tier ${tier}.`);
     process.exit(1);
   }
-  console.log(`Tier ${tier}: ${rows.length} enemies · average ${Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length)}`);
-  console.table(rows.map(({ index, name, score, label, hard, overridden, dropMs, thinkMs, skill, hp, defense, behavior }) => ({ index, name, score, label, hard, overridden, dropMs, thinkMs, skill, hp, defense, behavior })));
+  console.log(`Tier ${tier}: ${rows.length} enemies · average ${Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length)}/1000`);
+  console.table(rows.map(({ index, name, score, percent, label, hard, overridden, dropMs, thinkMs, moveMs, skill, hp, defense, behavior }) => ({ index, name, score, percent: percent.toFixed(1), label, hard, overridden, dropMs, thinkMs, moveMs, skill, hp, defense, behavior })));
   process.exit(0);
 }
 
@@ -69,7 +69,7 @@ if (args.includes('--overrides')) {
   process.exit(0);
 }
 
-console.log(`RuneStack enemy audit — ${report.total} enemies`);
+console.log(`RuneStack enemy audit — ${report.total} enemies · 0–1000 scale`);
 console.log('\nTiers');
 console.table(report.tiers);
 console.log('\nDifficulty bands');
@@ -79,5 +79,5 @@ console.table(report.behaviorCounts);
 console.log('\nChecks');
 for (const check of report.checks) console.log(`${check.pass ? 'PASS' : 'FAIL'}  ${check.name}`);
 console.log('\nLargest tier outliers');
-console.table(report.outliers.map(({ index, name, tier, score, label, hard, delta, dropMs, thinkMs, skill, behavior }) => ({ index, name, tier, score, label, hard, delta, dropMs, thinkMs, skill, behavior })));
+console.table(report.outliers.map(({ index, name, tier, score, label, hard, delta, dropMs, thinkMs, moveMs, skill, behavior }) => ({ index, name, tier, score, label, hard, delta, dropMs, thinkMs, moveMs, skill, behavior })));
 if (report.checks.some(check => !check.pass)) process.exitCode = 1;
